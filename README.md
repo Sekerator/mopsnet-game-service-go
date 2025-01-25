@@ -1,0 +1,1 @@
+# mopsnet-game-service-go
