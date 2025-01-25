@@ -1,0 +1,106 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # Проверка исходного кода
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Установка Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.22.5 # Укажи версию Go
+
+      # Кэширование модулей Go
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # Установка зависимостей
+      - name: Install dependencies
+        run: go mod tidy
+
+      # Сборка проекта
+      - name: Build project
+        run: go build -v ./...
+
+      # Запуск тестов
+      - name: Run tests
+        run: go test -v ./...
+
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' # Выполнять только при пуше в main
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          if [ -z "$DEPLOY_SERVER" ]; then
+            echo "DEPLOY_SERVER is not set"
+            exit 1
+          fi
+          ssh-keyscan -H $DEPLOY_SERVER >> ~/.ssh/known_hosts
+        env:
+          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
+
+      - name: Deploy to Server
+        env:
+          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh $DEPLOY_USER@$DEPLOY_SERVER "mkdir -p $DEPLOY_PATH"
+          rsync -avz --delete --exclude ".env" ./ $DEPLOY_USER@$DEPLOY_SERVER:$DEPLOY_PATH
+          ssh $DEPLOY_USER@$DEPLOY_SERVER "cd $DEPLOY_PATH"
+
+      - name: Run commands on server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.DEPLOY_SERVER }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /
+            cd /var/www/game-service
+            go mod tidy
+            go install github.com/jackc/tern@latest
+            export PATH=$PATH:$(go env GOPATH)/bin
+            cd /var/www/game-service/internal/db/migrations
+            mv -f tern.prod.conf tern.conf
+            tern migrate || (exit_code=$? && [ $exit_code -eq 143 ] && exit 0)
+            echo "Migrations applied successfully"
+            cd /var/www/game-service
+            go build -o game-service ./cmd/main.go
+            echo "Application build success"
+            pkill -9 -x -f './game-service'
+            echo "Application kill success"
+            nohup ./game-service > /var/www/game-service/app.log 2>&1 &
+            echo "Application start success"
