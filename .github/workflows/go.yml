@@ -79,7 +79,7 @@ jobs:
           ssh $DEPLOY_USER@$DEPLOY_SERVER "mkdir -p $DEPLOY_PATH"
           rsync -avz --delete \
             --exclude ".env" \
-#            --exclude "internal/db/migrations/tern.prod.conf" \
+            --exclude "internal/db/migrations/tern.prod.conf" \
             ./ $DEPLOY_USER@$DEPLOY_SERVER:$DEPLOY_PATH
           ssh $DEPLOY_USER@$DEPLOY_SERVER "cd $DEPLOY_PATH"
 
@@ -97,7 +97,7 @@ jobs:
             go install github.com/jackc/tern@latest
             export PATH=$PATH:$(go env GOPATH)/bin
             cd /var/www/game-service/internal/db/migrations
-            mv -f tern.prod.conf tern.conf
+            cp tern.prod.conf tern.conf
             tern migrate || (exit_code=$? && [ $exit_code -eq 143 ] && exit 0)
             echo "Migrations applied successfully"
             cd /var/www/game-service
