@@ -23,7 +23,7 @@ func FromEnv() (*Config, error) {
 	v.SetDefault("LISTEN_ADDR", "0.0.0.0")
 	v.SetDefault("LISTEN_PORT", "8080")
 	v.SetDefault("ENV", "local")
-	v.SetDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/magbat_user?sslmode=disable")
+	v.SetDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/magbat_game?sslmode=disable")
 	v.SetDefault("REDIS_URL", "localhost:6379")
 	v.SetDefault("REDIS_PASS", "45554555")
 	v.SetConfigName("env")

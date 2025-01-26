@@ -49,7 +49,7 @@ func main() {
 	//userService := services.NewUserService(userRepository)
 	//userHandler := handlers.NewUserHandler(userService)
 
-	r.Route("/user", func(r chi.Router) {
+	r.Route("/connect", func(r chi.Router) {
 		//r.Post("/login", userHandler.Login)
 	})
 
