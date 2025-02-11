@@ -1,22 +1,21 @@
 -- Write your migrate up statements here
 
-    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
     CREATE TABLE room (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        username VARCHAR(127) NOT NULL UNIQUE,
-        password_hash VARCHAR(127) NOT NULL,
-        auth_token VARCHAR(127),
-        email VARCHAR(63),
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        user1_id UUID NOT NULL,
+        user2_id UUID,
+        status INTEGER NOT NULL DEFAULT 0 CHECK (status BETWEEN 0 AND 9),
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE INDEX idx_room_user1_id ON room(user1_id);
+    CREATE INDEX idx_room_user2_id ON room(user2_id);
 
     CREATE OR REPLACE FUNCTION update_updated_at()
         RETURNS TRIGGER AS $$
     BEGIN
         NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
+    RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
 

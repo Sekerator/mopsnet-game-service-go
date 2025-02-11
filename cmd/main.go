@@ -2,15 +2,24 @@ package main
 
 import (
 	"game-service/config"
+	"game-service/internal/db/repositories"
+	"game-service/internal/handlers"
+	"game-service/internal/services"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/gorilla/websocket"
+	_ "github.com/gorilla/websocket"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
+
+var clients = make(map[string]*websocket.Conn)
+var mu sync.Mutex
 
 func main() {
 	logFile, err := os.OpenFile("logs/requests.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -45,12 +54,12 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(5 * time.Second))
 
-	//userRepository := repositories.NewUserRepo(conn)
-	//userService := services.NewUserService(userRepository)
-	//userHandler := handlers.NewUserHandler(userService)
+	gameRepository := repositories.NewGameRepo(conn)
+	gameService := services.NewGameService(gameRepository)
+	gameHandler := handlers.NewGameHandler(gameService, &clients, &mu)
 
-	r.Route("/connect", func(r chi.Router) {
-		//r.Post("/login", userHandler.Login)
+	r.Route("/", func(r chi.Router) {
+		r.Post("/ws", gameHandler.Ws)
 	})
 
 	log.Println("Сервер запущен по адресу: ", cfg.ListenAddrAndPort())
@@ -63,7 +72,7 @@ func main() {
 	} else {
 		go func() {
 			log.Println("Redirecting HTTP to HTTPS")
-			_ = http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_ = http.ListenAndServe(cfg.ListenAddrAndPort(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "https://"+r.Host+r.RequestURI, http.StatusMovedPermanently)
 			}))
 		}()
