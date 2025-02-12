@@ -59,7 +59,7 @@ func main() {
 	gameHandler := handlers.NewGameHandler(gameService, &clients, &mu)
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/ws", gameHandler.Ws)
+		r.Get("/ws", gameHandler.Ws)
 	})
 
 	log.Println("Сервер запущен по адресу: ", cfg.ListenAddrAndPort())
@@ -78,8 +78,8 @@ func main() {
 		}()
 
 		err = http.ListenAndServeTLS(cfg.ListenAddrAndPort(),
-			"/etc/letsencrypt/live/mopsnet.ru/fullchain.pem",
-			"/etc/letsencrypt/live/mopsnet.ru/privkey.pem",
+			"/etc/letsencrypt/live/game.mopsnet.ru/fullchain.pem",
+			"/etc/letsencrypt/live/game.mopsnet.ru/privkey.pem",
 			r)
 	}
 
